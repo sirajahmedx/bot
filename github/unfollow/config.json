@@ -1,0 +1,93 @@
+{
+  "app": {
+    "name": "GitHub Auto-Unfollow Bot",
+    "version": "1.0.0",
+    "description": "Automated GitHub unfollowing with intelligent rate limiting and progress persistence"
+  },
+  "defaults": {
+    "delays": {
+      "min": 3000,
+      "max": 8000,
+      "onError": 30000,
+      "betweenPages": 5000
+    },
+    "session": {
+      "minUnfollows": 10,
+      "maxUnfollows": 50,
+      "maxDuration": 1800000
+    },
+    "rateLimit": {
+      "maxRetries": 3,
+      "backoffMultiplier": 2,
+      "respectGitHubLimits": true,
+      "bufferRequests": 100
+    },
+    "pagination": {
+      "perPage": 100,
+      "maxPages": 50
+    },
+    "filtering": {
+      "skipBots": true,
+      "skipOrganizations": true,
+      "skipVerified": false,
+      "minFollowers": 0,
+      "maxFollowing": 10000
+    },
+    "behavior": {
+      "randomizeOrder": true,
+      "respectUserLimits": true,
+      "pauseOnRateLimit": true,
+      "enableProgressSaving": true
+    }
+  },
+  "users": {
+    "user1": {
+      "session": {
+        "minUnfollows": 15,
+        "maxUnfollows": 35
+      },
+      "delays": {
+        "min": 4000,
+        "max": 9000
+      }
+    },
+    "user2": {
+      "session": {
+        "minUnfollows": 20,
+        "maxUnfollows": 45
+      },
+      "delays": {
+        "min": 3500,
+        "max": 7500
+      }
+    },
+    "user3": {
+      "session": {
+        "minUnfollows": 12,
+        "maxUnfollows": 28
+      },
+      "delays": {
+        "min": 5000,
+        "max": 10000
+      }
+    },
+    "user4": {
+      "session": {
+        "minUnfollows": 18,
+        "maxUnfollows": 40
+      },
+      "delays": {
+        "min": 3000,
+        "max": 8500
+      }
+    }
+  },
+  "logging": {
+    "level": "info",
+    "enableFileLogging": true,
+    "enableConsoleLogging": true,
+    "logDirectory": "logs",
+    "maxFileSize": "10MB",
+    "maxFiles": 5
+  }
+}

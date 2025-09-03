@@ -1,0 +1,37 @@
+{
+  "name": "github-auto-follow-bot",
+  "version": "1.0.0",
+  "description": "Automated GitHub following bot with intelligent rate limiting and progress persistence",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "follow": "node index.js",
+    "install-deps": "npm install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "github",
+    "automation",
+    "follow",
+    "bot",
+    "cli",
+    "api",
+    "social"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^20.0.2",
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.1",
+    "winston": "^3.11.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github-follow-bot"
+  }
+}

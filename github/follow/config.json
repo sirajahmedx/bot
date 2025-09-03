@@ -1,0 +1,15 @@
+{
+  "minDelay": 2000,
+  "maxDelay": 5000,
+  "skipChance": 0.05,
+  "longPauseChance": 0.05,
+  "longPauseMin": 10000,
+  "longPauseMax": 30000,
+  "sessionBreakAfter": 50,
+  "breakDuration": 60000,
+  "maxPerSession": [999999, 999999],
+  "followPercentage": 0.6,
+  "retryAttempts": 3,
+  "retryDelay": 1000,
+  "perPage": 100
+}
