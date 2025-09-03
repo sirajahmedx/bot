@@ -19,7 +19,7 @@ const DEFAULT_CONFIG = {
   sessionBreakAfter: 50,
   breakDuration: 30000,
   maxPerSession: [50, 80],
-  followPercentage: 1.0,
+  followPercentage: 1.0,  // Unfollow 100% of users
   retryAttempts: 3,
   retryDelay: 1000,
   perPage: 100,
