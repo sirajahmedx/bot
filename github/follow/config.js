@@ -10,19 +10,28 @@ const CONFIG_FILE = "config.json";
  * Default configuration
  */
 const DEFAULT_CONFIG = {
-  minDelay: 1000,
-  maxDelay: 3000,
+  minDelay: 1000, // 1 second base delay
+  maxDelay: 1000, // 1 second base delay (no randomization for consistency)
   skipChance: 0.05,
   longPauseChance: 0.05,
   longPauseMin: 5000,
   longPauseMax: 10000,
-  sessionBreakAfter: 50,
-  breakDuration: 30000,
+  sessionBreakAfter: 20, // Break every 20 follows
+  breakDuration: 5000, // 5 second breaks
   maxPerSession: [50, 80],
   followPercentage: 0.6,
   retryAttempts: 3,
   retryDelay: 1000,
   perPage: 100,
+
+  // New continuous following settings
+  continuousMode: {
+    enabled: true,
+    baseDelay: 1000, // 1 second after each follow
+    batchSize: 20, // Follow 20 users continuously
+    batchBreak: 5000, // 5 second break after each batch
+    errorTolerance: true, // Don't stop on individual errors
+  },
 };
 
 /**
@@ -265,4 +274,41 @@ export function displayConfig(config) {
   );
   logger.info(`  Break after: ${config.sessionBreakAfter} follows`);
   logger.info(`  Break duration: ${config.breakDuration / 1000}s`);
+
+  // Display continuous mode info
+  if (config.continuousMode && config.continuousMode.enabled) {
+    logger.info(
+      `  🔄 Continuous mode: ${config.continuousMode.baseDelay}ms delay, ${config.continuousMode.batchBreak}ms break every ${config.continuousMode.batchSize} follows`
+    );
+  }
+}
+
+/**
+ * Get delay for continuous following mode
+ * @param {Object} config - Configuration object
+ * @returns {number} Delay in milliseconds
+ */
+export function getContinuousDelay(config) {
+  if (config.continuousMode && config.continuousMode.enabled) {
+    return config.continuousMode.baseDelay;
+  }
+  return config.minDelay;
+}
+
+/**
+ * Check if it's time for a batch break in continuous mode
+ * @param {Object} config - Configuration object
+ * @param {number} followedCount - Number of users followed
+ * @returns {Object} {shouldBreak: boolean, breakDuration: number}
+ */
+export function checkBatchBreak(config, followedCount) {
+  if (!config.continuousMode || !config.continuousMode.enabled) {
+    return { shouldBreak: false, breakDuration: 0 };
+  }
+
+  const batchSize = config.continuousMode.batchSize;
+  const shouldBreak = followedCount > 0 && followedCount % batchSize === 0;
+  const breakDuration = shouldBreak ? config.continuousMode.batchBreak : 0;
+
+  return { shouldBreak, breakDuration };
 }

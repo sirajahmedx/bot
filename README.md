@@ -59,11 +59,13 @@ bot/
 ### 1. Choose Your Bot
 
 **Follow Bot**: Grows your network by following users from target accounts
+
 ```bash
 cd github/follow
 ```
 
 **Unfollow Bot**: Manages your connections by unfollowing users
+
 ```bash
 cd github/unfollow
 ```
@@ -133,11 +135,13 @@ echo "GITHUB_TOKEN=ghp_your_github_token_here" > .env.user1
 ### 📊 Progress Tracking
 
 #### Follow Bot Progress
+
 - **Files**: `progress.user1.json`, `progress.user2.json`, etc.
 - **Location**: `github/follow/`
 - **Tracks**: Followed users, current page, session statistics
 
 #### Unfollow Bot Progress
+
 - **Files**: `unfollow-progress.user1.json`, `unfollow-progress.user2.json`, etc.
 - **Location**: `github/unfollow/`
 - **Tracks**: Unfollowed users, current page, session statistics
@@ -324,12 +328,15 @@ node index.js --username octocat --mode followers --user user1 --dry-run
 ### Common Issues
 
 1. **Rate Limit Errors**
+
    - Solution: The bots automatically handle rate limits, just wait for the cooldown
 
 2. **Invalid Token Error**
+
    - Solution: Check your `.env.userX` file has a valid GitHub token with `user:follow` scope
 
 3. **Target User Not Found**
+
    - Solution: Verify the target username exists and is public
 
 4. **Permission Denied**
@@ -382,14 +389,17 @@ Progress files contain:
 ## ⚡ Performance Tips
 
 1. **Optimal Session Timing**
+
    - Run during GitHub's off-peak hours for better rate limits
    - Spread sessions across different times of day
 
 2. **Token Management**
+
    - Use different tokens for different users to increase rate limits
    - Monitor token usage and expiration dates
 
 3. **Target Selection**
+
    - Choose targets with active, engaged followers
    - Avoid targets with mostly bot followers
 
@@ -452,6 +462,7 @@ Progress files contain:
 This GitHub bot project provides two powerful, independent automation tools for managing your GitHub network. Each bot is designed with safety, reliability, and user experience in mind.
 
 **Key Benefits:**
+
 - 🔄 Efficient network growth (Follow Bot)
 - 🧹 Smart connection management (Unfollow Bot)
 - 🛡️ Built-in safety features
@@ -463,4 +474,4 @@ This GitHub bot project provides two powerful, independent automation tools for 
 
 ---
 
-*Remember: Use these tools responsibly and in accordance with GitHub's Terms of Service. Always prioritize quality connections over quantity.*
+_Remember: Use these tools responsibly and in accordance with GitHub's Terms of Service. Always prioritize quality connections over quantity._

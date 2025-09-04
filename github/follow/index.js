@@ -12,6 +12,8 @@ import {
   calculateUsersToFollow,
   shuffleArray,
   displayConfig,
+  getContinuousDelay,
+  checkBatchBreak,
 } from "./config.js";
 import {
   initializeProgress,
@@ -102,6 +104,22 @@ class GitHubAutoFollow {
 
       logger.logSessionStart(username, mode, this.progress.sessionLimit);
 
+      // Display continuous mode information
+      if (this.config.continuousMode && this.config.continuousMode.enabled) {
+        logger.info("🔄 Continuous following mode enabled:");
+        logger.info(
+          `   • ${this.config.continuousMode.baseDelay}ms delay after each follow`
+        );
+        logger.info(
+          `   • ${this.config.continuousMode.batchBreak}ms break every ${this.config.continuousMode.batchSize} follows`
+        );
+        logger.info(
+          `   • Error tolerance: ${
+            this.config.continuousMode.errorTolerance ? "ON" : "OFF"
+          }`
+        );
+      }
+
       return true;
     } catch (error) {
       logger.error(`Initialization failed: ${error.message}`);
@@ -182,39 +200,62 @@ class GitHubAutoFollow {
             this.progress.currentPage
           );
 
-          // Session break check
-          if (
-            this.progress.totalFollowed % this.config.sessionBreakAfter ===
-            0
-          ) {
-            logger.logPause(this.config.breakDuration, "session break");
-            await this.sleep(this.config.breakDuration);
-          }
-
-          // Random delay between follows with progressive increase
-          const delay = getRandomDelay(
+          // Check for batch break (every 20 follows in continuous mode)
+          const batchBreak = checkBatchBreak(
             this.config,
             this.progress.totalFollowed
           );
-          if (delay > this.config.maxDelay) {
-            logger.logPause(delay, "extended pause");
+          if (batchBreak.shouldBreak) {
+            logger.info(
+              `📦 Batch complete - taking ${batchBreak.breakDuration}ms break after ${this.progress.totalFollowed} follows`
+            );
+            await this.sleep(batchBreak.breakDuration);
+          } else {
+            // Standard 1-second delay between follows
+            const delay = getContinuousDelay(this.config);
+            logger.debug(`⏱️  Standard delay: ${delay}ms`);
+            await this.sleep(delay);
           }
-          await this.sleep(delay);
         } else {
           errors++;
+          // In continuous mode with error tolerance, we still add the standard delay
+          if (
+            this.config.continuousMode &&
+            this.config.continuousMode.errorTolerance
+          ) {
+            const delay = getContinuousDelay(this.config);
+            logger.debug(
+              `⏱️  Error delay: ${delay}ms (continuing despite error)`
+            );
+            await this.sleep(delay);
+          }
         }
       } catch (error) {
         logger.error(`Error processing user ${user.login}: ${error.message}`);
         errors++;
 
-        // If authentication error, stop the session
+        // In continuous mode, only stop on critical authentication errors
         if (
           error.message.includes("Authentication failed") ||
           error.message.includes("insufficient permissions")
         ) {
-          logger.error("Authentication error detected, stopping session");
+          logger.error(
+            "Critical authentication error detected, stopping session"
+          );
           this.shouldStop = true;
           break;
+        }
+
+        // For other errors in continuous mode, add delay and continue
+        if (
+          this.config.continuousMode &&
+          this.config.continuousMode.errorTolerance
+        ) {
+          const delay = getContinuousDelay(this.config);
+          logger.debug(
+            `⏱️  Error recovery delay: ${delay}ms (continuing despite error)`
+          );
+          await this.sleep(delay);
         }
       }
     }

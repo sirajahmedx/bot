@@ -12,6 +12,10 @@ import {
   calculateUsersToFollow,
   shuffleArray,
   displayConfig,
+  checkHumanBreak,
+  getHumanLikeDelay,
+  getThinkingPause,
+  formatBreakDuration,
 } from "./config.js";
 import {
   initializeProgress,
@@ -114,6 +118,15 @@ class GitHubAutoUnfollow {
     try {
       logger.info("🎬 Starting unfollow session");
 
+      // Display human behavior information
+      if (this.config.humanBehavior) {
+        logger.info("🤖 Human behavior simulation enabled:");
+        logger.info("   • Intelligent breaks and pauses");
+        logger.info("   • Thinking pauses before actions");
+        logger.info("   • Fatigue simulation for longer sessions");
+        logger.info("   • Burst mode for varied pacing");
+      }
+
       // Check API status
       const apiStatus = await checkAPIStatus();
       if (apiStatus) {
@@ -122,20 +135,16 @@ class GitHubAutoUnfollow {
         );
       }
 
-      // Generate session limit
+      // Generate session limit (keeping variable for compatibility)
       const sessionLimit = generateSessionLimit(this.config);
-      logger.info(`🎯 Session target: Unfollow up to ${sessionLimit} users`);
+      logger.info(`🎯 Session target: Continue until all users are processed`);
 
       let currentPage = this.progress.currentPage || 1;
       let totalUnfollowed = 0;
       let sessionUnfollowed = 0;
       let hasMorePages = true;
 
-      while (
-        hasMorePages &&
-        sessionUnfollowed < sessionLimit &&
-        !this.shouldStop
-      ) {
+      while (hasMorePages && !this.shouldStop) {
         logger.info(`\n📄 Processing page ${currentPage}`);
 
         try {
@@ -161,15 +170,11 @@ class GitHubAutoUnfollow {
           );
 
           // Calculate how many users to unfollow from this page
-          const remainingInSession = sessionLimit - sessionUnfollowed;
           const baseUsersToProcess = calculateUsersToFollow(
             this.config,
             shuffledUsers.length
           );
-          const usersToProcess = Math.min(
-            baseUsersToProcess,
-            remainingInSession
-          );
+          const usersToProcess = baseUsersToProcess;
 
           logger.info(`🔄 Will process ${usersToProcess} users from this page`);
 
@@ -205,6 +210,17 @@ class GitHubAutoUnfollow {
                 continue;
               }
 
+              // Add thinking pause before unfollowing (human-like hesitation)
+              const thinkingPause = getThinkingPause(this.config);
+              if (thinkingPause > 0) {
+                logger.debug(
+                  `🤔 Thinking pause: ${formatBreakDuration(thinkingPause)}`
+                );
+                await new Promise((resolve) =>
+                  setTimeout(resolve, thinkingPause)
+                );
+              }
+
               // Unfollow the user
               logger.info(`🔄 Attempting to unfollow: ${user.login}`);
               const success = await unfollowUser(user.login, this.config);
@@ -216,24 +232,68 @@ class GitHubAutoUnfollow {
                 totalUnfollowed++;
 
                 logger.info(
-                  `✅ Successfully unfollowed ${user.login} (${sessionUnfollowed}/${sessionLimit})`
+                  `✅ Successfully unfollowed ${user.login} (${sessionUnfollowed} total)`
                 );
 
                 // Save progress
                 await saveProgress(this.progress);
 
-                // Random delay between unfollows
-                const delay = getRandomDelay(this.config);
-                logger.debug(`⏱️  Waiting ${delay}ms before next action`);
-                await new Promise((resolve) => setTimeout(resolve, delay));
+                // Check for human-like breaks based on action count
+                const miniBreak = checkHumanBreak(
+                  this.config,
+                  sessionUnfollowed,
+                  "mini"
+                );
+                const mediumBreak = checkHumanBreak(
+                  this.config,
+                  sessionUnfollowed,
+                  "medium"
+                );
+                const longBreak = checkHumanBreak(
+                  this.config,
+                  sessionUnfollowed,
+                  "long"
+                );
 
-                // Check if session limit reached
-                if (sessionUnfollowed >= sessionLimit) {
+                if (longBreak.shouldBreak) {
                   logger.info(
-                    `🎯 Session limit reached (${sessionLimit} unfollows)`
+                    `😴 Taking a long break: ${formatBreakDuration(
+                      longBreak.duration
+                    )} (human behavior)`
                   );
-                  break;
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, longBreak.duration)
+                  );
+                } else if (mediumBreak.shouldBreak) {
+                  logger.info(
+                    `☕ Taking a medium break: ${formatBreakDuration(
+                      mediumBreak.duration
+                    )} (human behavior)`
+                  );
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, mediumBreak.duration)
+                  );
+                } else if (miniBreak.shouldBreak) {
+                  logger.debug(
+                    `⏸️  Mini break: ${formatBreakDuration(
+                      miniBreak.duration
+                    )} (human behavior)`
+                  );
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, miniBreak.duration)
+                  );
                 }
+
+                // Enhanced human-like delay between unfollows
+                const delay = getHumanLikeDelay(
+                  this.config,
+                  totalUnfollowed,
+                  sessionUnfollowed
+                );
+                logger.debug(
+                  `⏱️  Waiting ${formatBreakDuration(delay)} before next action`
+                );
+                await new Promise((resolve) => setTimeout(resolve, delay));
               } else {
                 logger.warn(`❌ Failed to unfollow ${user.login}`);
               }
@@ -259,6 +319,19 @@ class GitHubAutoUnfollow {
           currentPage++;
           updateCurrentPage(currentPage, this.progress);
           await saveProgress(this.progress);
+
+          // Page break (human-like pause between pages)
+          const pageBreak = checkHumanBreak(this.config, 0, "page");
+          if (pageBreak.shouldBreak) {
+            logger.info(
+              `📄 Page break: ${formatBreakDuration(
+                pageBreak.duration
+              )} (checking next page)`
+            );
+            await new Promise((resolve) =>
+              setTimeout(resolve, pageBreak.duration)
+            );
+          }
 
           // If we processed fewer users than requested, we might be at the end
           if (shuffledUsers.length < this.config.perPage) {
@@ -302,8 +375,6 @@ class GitHubAutoUnfollow {
 
       if (this.shouldStop) {
         logger.info("🛑 Session stopped by user");
-      } else if (sessionUnfollowed >= sessionLimit) {
-        logger.info("🎯 Session completed - limit reached");
       } else {
         logger.info("✅ Session completed - no more users to process");
       }

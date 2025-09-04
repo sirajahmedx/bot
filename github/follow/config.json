@@ -1,15 +1,22 @@
 {
-  "minDelay": 2000,
-  "maxDelay": 5000,
+  "minDelay": 1000,
+  "maxDelay": 1000,
   "skipChance": 0.05,
   "longPauseChance": 0.05,
   "longPauseMin": 10000,
   "longPauseMax": 30000,
-  "sessionBreakAfter": 50,
-  "breakDuration": 60000,
+  "sessionBreakAfter": 20,
+  "breakDuration": 5000,
   "maxPerSession": [999999, 999999],
   "followPercentage": 0.6,
   "retryAttempts": 3,
   "retryDelay": 1000,
-  "perPage": 100
+  "perPage": 100,
+  "continuousMode": {
+    "enabled": true,
+    "baseDelay": 1000,
+    "batchSize": 20,
+    "batchBreak": 5000,
+    "errorTolerance": true
+  }
 }

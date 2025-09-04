@@ -12,8 +12,8 @@
       "betweenPages": 5000
     },
     "session": {
-      "minUnfollows": 10,
-      "maxUnfollows": 50,
+      "minUnfollows": 999999,
+      "maxUnfollows": 999999,
       "maxDuration": 1800000
     },
     "rateLimit": {
@@ -38,47 +38,87 @@
       "respectUserLimits": true,
       "pauseOnRateLimit": true,
       "enableProgressSaving": true
+    },
+    "humanBehavior": {
+      "miniBreakAfter": [3, 7],
+      "miniBreakDuration": [2000, 5000],
+      "miniBreakChance": 0.3,
+      "mediumBreakAfter": [15, 25],
+      "mediumBreakDuration": [10000, 30000],
+      "mediumBreakChance": 0.4,
+      "longBreakAfter": [40, 60],
+      "longBreakDuration": [60000, 180000],
+      "longBreakChance": 0.6,
+      "pageBreakChance": 0.2,
+      "pageBreakDuration": [3000, 8000],
+      "thinkingPauseChance": 0.15,
+      "thinkingPauseDuration": [1500, 4000],
+      "burstModeChance": 0.1,
+      "burstModeActions": [5, 10],
+      "burstModeDelayMultiplier": 0.5,
+      "enableFatigue": true,
+      "fatigueStartsAfter": 100,
+      "fatigueDelayIncrease": 0.1
     }
   },
   "users": {
     "user1": {
       "session": {
-        "minUnfollows": 15,
-        "maxUnfollows": 35
+        "minUnfollows": 999999,
+        "maxUnfollows": 999999
       },
       "delays": {
         "min": 4000,
         "max": 9000
+      },
+      "humanBehavior": {
+        "miniBreakChance": 0.4,
+        "longBreakChance": 0.7,
+        "thinkingPauseChance": 0.2
       }
     },
     "user2": {
       "session": {
-        "minUnfollows": 20,
-        "maxUnfollows": 45
+        "minUnfollows": 999999,
+        "maxUnfollows": 999999
       },
       "delays": {
         "min": 3500,
         "max": 7500
+      },
+      "humanBehavior": {
+        "burstModeChance": 0.15,
+        "pageBreakChance": 0.3
       }
     },
     "user3": {
       "session": {
-        "minUnfollows": 12,
-        "maxUnfollows": 28
+        "minUnfollows": 999999,
+        "maxUnfollows": 999999
       },
       "delays": {
         "min": 5000,
         "max": 10000
+      },
+      "humanBehavior": {
+        "mediumBreakChance": 0.5,
+        "enableFatigue": false,
+        "thinkingPauseChance": 0.25
       }
     },
     "user4": {
       "session": {
-        "minUnfollows": 18,
-        "maxUnfollows": 40
+        "minUnfollows": 999999,
+        "maxUnfollows": 999999
       },
       "delays": {
         "min": 3000,
         "max": 8500
+      },
+      "humanBehavior": {
+        "miniBreakAfter": [2, 5],
+        "longBreakDuration": [120000, 300000],
+        "fatigueDelayIncrease": 0.15
       }
     }
   },

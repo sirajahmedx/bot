@@ -18,18 +18,55 @@ const DEFAULT_CONFIG = {
   longPauseMax: 10000,
   sessionBreakAfter: 50,
   breakDuration: 30000,
-  maxPerSession: [50, 80],
+  maxPerSession: [999999, 999999], // Very high limits to continue until end
   followPercentage: 1.0, // Unfollow 100% of users
   retryAttempts: 3,
   retryDelay: 1000,
   perPage: 100,
+
+  // Human-like behavior patterns
+  humanBehavior: {
+    // Mini breaks every few actions (3-7 actions)
+    miniBreakAfter: [3, 7],
+    miniBreakDuration: [2000, 5000],
+    miniBreakChance: 0.3,
+
+    // Medium breaks every 15-25 actions
+    mediumBreakAfter: [15, 25],
+    mediumBreakDuration: [10000, 30000],
+    mediumBreakChance: 0.4,
+
+    // Long breaks every 40-60 actions
+    longBreakAfter: [40, 60],
+    longBreakDuration: [60000, 180000], // 1-3 minutes
+    longBreakChance: 0.6,
+
+    // Page breaks (between pages)
+    pageBreakChance: 0.2,
+    pageBreakDuration: [3000, 8000],
+
+    // Random thinking pauses
+    thinkingPauseChance: 0.15,
+    thinkingPauseDuration: [1500, 4000],
+
+    // Burst behavior (sometimes faster, sometimes slower)
+    burstModeChance: 0.1,
+    burstModeActions: [5, 10],
+    burstModeDelayMultiplier: 0.5, // Faster during burst
+
+    // Fatigue simulation (slower as session progresses)
+    enableFatigue: true,
+    fatigueStartsAfter: 100,
+    fatigueDelayIncrease: 0.1, // 10% increase per 50 actions
+  },
 };
 
 /**
  * Load and validate configuration
+ * @param {string} user - User configuration (user1, user2, etc.)
  * @returns {Object} Configuration object
  */
-export function loadConfig() {
+export function loadConfig(user = null) {
   try {
     if (!existsSync(CONFIG_FILE)) {
       logger.warn(`Config file ${CONFIG_FILE} not found, using defaults`);
@@ -37,13 +74,78 @@ export function loadConfig() {
     }
 
     const data = readFileSync(CONFIG_FILE, "utf8");
-    const config = JSON.parse(data);
+    const configFile = JSON.parse(data);
 
-    // Merge with defaults to ensure all required fields exist
-    const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+    let config;
+
+    // Check if it's the new format with defaults and users sections
+    if (configFile.defaults && configFile.users) {
+      // Start with default configuration
+      config = { ...DEFAULT_CONFIG };
+
+      // Apply defaults from the configuration file
+      if (configFile.defaults.delays) {
+        config.minDelay = configFile.defaults.delays.min || config.minDelay;
+        config.maxDelay = configFile.defaults.delays.max || config.maxDelay;
+      }
+
+      if (configFile.defaults.session) {
+        // For unfollow bot, we want to continue until the end, so set very high limits
+        config.maxPerSession = [
+          configFile.defaults.session.minUnfollows || 999999,
+          configFile.defaults.session.maxUnfollows || 999999,
+        ];
+      }
+
+      if (configFile.defaults.pagination) {
+        config.perPage =
+          configFile.defaults.pagination.perPage || config.perPage;
+      }
+
+      if (configFile.defaults.behavior) {
+        config.followPercentage = 1.0; // Always unfollow 100% for unfollow bot
+      }
+
+      // Apply human behavior settings from configuration file
+      if (configFile.defaults.humanBehavior) {
+        config.humanBehavior = {
+          ...config.humanBehavior,
+          ...configFile.defaults.humanBehavior,
+        };
+      }
+
+      // Apply user-specific overrides if user is specified
+      if (user && configFile.users && configFile.users[user]) {
+        const userConfig = configFile.users[user];
+
+        if (userConfig.delays) {
+          config.minDelay = userConfig.delays.min || config.minDelay;
+          config.maxDelay = userConfig.delays.max || config.maxDelay;
+        }
+
+        if (userConfig.session) {
+          // For unfollow bot, we want to continue until the end
+          config.maxPerSession = [
+            userConfig.session.minUnfollows || 999999,
+            userConfig.session.maxUnfollows || 999999,
+          ];
+        }
+
+        // Apply user-specific human behavior overrides
+        if (userConfig.humanBehavior) {
+          config.humanBehavior = {
+            ...config.humanBehavior,
+            ...userConfig.humanBehavior,
+          };
+        }
+      }
+    } else {
+      // Old format - merge directly with defaults
+      config = { ...DEFAULT_CONFIG, ...configFile };
+    }
 
     // Validate configuration
-    const validatedConfig = validateConfig(mergedConfig);
+    const validatedConfig = validateConfig(config);
 
     logger.debug("Configuration loaded and validated successfully");
     return validatedConfig;
@@ -250,19 +352,167 @@ export function getConfigFilePath() {
  * Display current configuration
  * @param {Object} config - Configuration object
  */
-export function displayConfig(config) {
+export function displayConfig(config, username, mode) {
   logger.info("Current configuration:");
   logger.info(
-    `  Follow percentage: ${(config.followPercentage * 100).toFixed(1)}%`
+    `  Unfollow percentage: ${(config.followPercentage * 100).toFixed(1)}%`
   );
   logger.info(`  Delay range: ${config.minDelay}-${config.maxDelay}ms`);
   logger.info(`  Skip chance: ${(config.skipChance * 100).toFixed(1)}%`);
   logger.info(
     `  Long pause chance: ${(config.longPauseChance * 100).toFixed(1)}%`
   );
-  logger.info(
-    `  Session limit: ${config.maxPerSession[0]}-${config.maxPerSession[1]} users`
-  );
-  logger.info(`  Break after: ${config.sessionBreakAfter} follows`);
+  logger.info(`  Session mode: Continue until all users are processed`);
+  logger.info(`  Break after: ${config.sessionBreakAfter} unfollows`);
   logger.info(`  Break duration: ${config.breakDuration / 1000}s`);
+  logger.info(`  Target: ${username}'s ${mode}`);
+
+  // Display human behavior settings if enabled
+  if (config.humanBehavior) {
+    logger.info(`  Human behavior: Enabled with intelligent breaks and pauses`);
+  }
+}
+
+/**
+ * Get a random value between min and max from an array
+ * @param {Array} range - [min, max] range
+ * @returns {number} Random value between min and max
+ */
+function getRandomInRange(range) {
+  const [min, max] = range;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Check if it's time for a human-like break
+ * @param {Object} config - Configuration object
+ * @param {number} actionCount - Number of actions performed
+ * @param {string} breakType - Type of break ('mini', 'medium', 'long')
+ * @returns {Object} Break information {shouldBreak: boolean, duration: number}
+ */
+export function checkHumanBreak(config, actionCount, breakType = "mini") {
+  if (!config.humanBehavior) {
+    return { shouldBreak: false, duration: 0 };
+  }
+
+  const behavior = config.humanBehavior;
+  let shouldBreak = false;
+  let duration = 0;
+
+  switch (breakType) {
+    case "mini":
+      const miniRange = getRandomInRange(behavior.miniBreakAfter);
+      if (
+        actionCount % miniRange === 0 &&
+        Math.random() < behavior.miniBreakChance
+      ) {
+        shouldBreak = true;
+        duration = getRandomInRange(behavior.miniBreakDuration);
+      }
+      break;
+
+    case "medium":
+      const mediumRange = getRandomInRange(behavior.mediumBreakAfter);
+      if (
+        actionCount % mediumRange === 0 &&
+        Math.random() < behavior.mediumBreakChance
+      ) {
+        shouldBreak = true;
+        duration = getRandomInRange(behavior.mediumBreakDuration);
+      }
+      break;
+
+    case "long":
+      const longRange = getRandomInRange(behavior.longBreakAfter);
+      if (
+        actionCount % longRange === 0 &&
+        Math.random() < behavior.longBreakChance
+      ) {
+        shouldBreak = true;
+        duration = getRandomInRange(behavior.longBreakDuration);
+      }
+      break;
+
+    case "page":
+      if (Math.random() < behavior.pageBreakChance) {
+        shouldBreak = true;
+        duration = getRandomInRange(behavior.pageBreakDuration);
+      }
+      break;
+
+    case "thinking":
+      if (Math.random() < behavior.thinkingPauseChance) {
+        shouldBreak = true;
+        duration = getRandomInRange(behavior.thinkingPauseDuration);
+      }
+      break;
+  }
+
+  return { shouldBreak, duration };
+}
+
+/**
+ * Calculate enhanced delay with human behavior patterns
+ * @param {Object} config - Configuration object
+ * @param {number} totalUnfollowed - Total number of users unfollowed
+ * @param {number} sessionUnfollowed - Number of users unfollowed in current session
+ * @returns {number} Delay in milliseconds
+ */
+export function getHumanLikeDelay(
+  config,
+  totalUnfollowed = 0,
+  sessionUnfollowed = 0
+) {
+  let baseDelay = getRandomDelay(config, totalUnfollowed);
+
+  if (!config.humanBehavior) {
+    return baseDelay;
+  }
+
+  const behavior = config.humanBehavior;
+
+  // Apply fatigue simulation
+  if (behavior.enableFatigue && totalUnfollowed > behavior.fatigueStartsAfter) {
+    const fatigueMultiplier =
+      1 +
+      Math.floor((totalUnfollowed - behavior.fatigueStartsAfter) / 50) *
+        behavior.fatigueDelayIncrease;
+    baseDelay *= fatigueMultiplier;
+  }
+
+  // Apply burst mode (sometimes faster)
+  if (Math.random() < behavior.burstModeChance) {
+    const burstActions = getRandomInRange(behavior.burstModeActions);
+    if (sessionUnfollowed % burstActions < burstActions / 2) {
+      baseDelay *= behavior.burstModeDelayMultiplier;
+      logger.debug(`🏃 Burst mode active - faster pace`);
+    }
+  }
+
+  return Math.floor(baseDelay);
+}
+
+/**
+ * Get a thinking pause (brief hesitation before action)
+ * @param {Object} config - Configuration object
+ * @returns {number} Thinking pause duration in milliseconds
+ */
+export function getThinkingPause(config) {
+  const breakInfo = checkHumanBreak(config, 0, "thinking");
+  return breakInfo.shouldBreak ? breakInfo.duration : 0;
+}
+
+/**
+ * Format break duration for human-readable display
+ * @param {number} duration - Duration in milliseconds
+ * @returns {string} Formatted duration string
+ */
+export function formatBreakDuration(duration) {
+  if (duration < 1000) {
+    return `${duration}ms`;
+  } else if (duration < 60000) {
+    return `${(duration / 1000).toFixed(1)}s`;
+  } else {
+    return `${(duration / 60000).toFixed(1)}m`;
+  }
 }
